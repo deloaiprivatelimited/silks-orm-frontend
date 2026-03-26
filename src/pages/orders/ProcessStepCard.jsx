@@ -125,9 +125,9 @@ export default function ProcessStepCard({ step, dispatches = [], stepStatus, ord
           </div>
           {/* Derived step badge */}
           <span className={`badge ${
-            stepStatus === "completed" ? "bg-emerald-500/20 text-emerald-400" :
-            stepStatus === "in_process" ? "bg-gold-500/20 text-gold-400" :
-            "bg-stone-700/40 text-stone-400"
+            stepStatus === "completed" ? "bg-white text-black" :
+            stepStatus === "in_process" ? "bg-orange-500 text-white" :
+            "bg-orange-500/50 text-orange-400"
           }`}>
             {stepStatus}
           </span>
@@ -140,7 +140,7 @@ export default function ProcessStepCard({ step, dispatches = [], stepStatus, ord
               <div key={d.id} className="bg-ink-900/60 rounded-lg p-3 border border-ink-700">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-stone-200 text-sm font-medium">{d.vendor_name}</span>
-                  <span className={`badge text-xs ${d.status === "completed" ? "bg-emerald-500/20 text-emerald-400" : "bg-gold-500/20 text-gold-400"}`}>
+                  <span className={`badge text-xs ${d.status === "completed" ? "bg-white text-black" : "bg-orange-500 text-white"}`}>
                     {d.status}
                   </span>
                 </div>
