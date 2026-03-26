@@ -190,9 +190,9 @@ export default function ProcessStepCard({
         title={`Send to ${meta.label}`}
       >
         <SendModal
-          step={step}
-          sarees={orderSarees}
-          onSend={onSend}
+  step={step}
+  sarees={orderSarees}
+  onSend={(payload) => onSend(step, payload)}
           onClose={() => setModal(false)}
         />
       </Modal>
