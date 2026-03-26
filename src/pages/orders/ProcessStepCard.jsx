@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { getVendors } from "../../utils/api";
-import { Modal, Spinner } from "../../components/UI";
+import { Modal, Badge, Spinner } from "../../components/UI";
 
-const stepMeta = {
-  gum:        { label: "Gum", icon: "⬡" },
-  polishing:  { label: "Polishing", icon: "◈" },
-  blouse_work:{ label: "Blouse Work", icon: "✦" },
+const stepColors = {
+  gum:        { bg: "bg-emerald-500/10", border: "border-emerald-500/30", text: "text-emerald-400", icon: "◆" },
+  polishing:  { bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-400", icon: "◇" },
+  blouse_work:{ bg: "bg-red-500/10",   border: "border-red-500/30",   text: "text-red-400",   icon: "✦" },
 };
 
 function SendModal({ step, sarees, onSend, onClose }) {
@@ -13,6 +13,9 @@ function SendModal({ step, sarees, onSend, onClose }) {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
     vendor_id: "",
+    logistics_vendor: "",
+    logistics_type: "",
+    price: "",
     sarees_sent: sarees.map(s => ({
       saree_type: s.saree_type,
       max: s.quantity,
@@ -24,177 +27,168 @@ function SendModal({ step, sarees, onSend, onClose }) {
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    getVendors(step)
-      .then(r => setVendors(r.data))
-      .finally(() => setLoading(false));
+    getVendors(step).then(r => setVendors(r.data)).finally(() => setLoading(false));
   }, [step]);
+
+  const toggle = (i) =>
+    setForm({ ...form, sarees_sent: form.sarees_sent.map((s, idx) => idx === i ? { ...s, selected: !s.selected } : s) });
+
+  const updateQty = (i, qty) =>
+    setForm({ ...form, sarees_sent: form.sarees_sent.map((s, idx) => idx === i ? { ...s, send_qty: qty } : s) });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.vendor_id) return setErr("Select vendor");
-
+    setErr("");
+    if (!form.vendor_id) return setErr("Select a vendor");
     const sarees_sent = form.sarees_sent
-      .filter(s => s.selected)
-      .map(s => ({
-        saree_type: s.saree_type,
-        quantity: s.send_qty
-      }));
-
-    if (!sarees_sent.length) return setErr("Select sarees");
-
+      .filter(s => s.selected && parseInt(s.send_qty) > 0)
+      .map(s => ({ saree_type: s.saree_type, quantity: parseInt(s.send_qty) }));
+    if (!sarees_sent.length) return setErr("Select at least one saree");
     setSaving(true);
-    await onSend({ vendor_id: form.vendor_id, sarees_sent });
+    try {
+      await onSend({ vendor_id: form.vendor_id, logistics_vendor: form.logistics_vendor, logistics_type: form.logistics_type, price: form.price !== "" ? parseFloat(form.price) : null, sarees_sent });
+    } catch (e) {
+      setErr(e.response?.data?.error || "Failed");
+      setSaving(false);
+    }
   };
 
+  const c = stepColors[step];
   return (
-<form onSubmit={handleSubmit} className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-1">
-      <select
-        className="w-full border rounded-xl px-3 py-2"
-        value={form.vendor_id}
-        onChange={(e) => setForm({ ...form, vendor_id: e.target.value })}
-      >
-        <option value="">Select vendor</option>
-        {vendors.map(v => (
-          <option key={v.id} value={v.id}>{v.name}</option>
-        ))}
-      </select>
-
-      <div className="space-y-2">
-        {form.sarees_sent.map((s, i) => (
-          <label key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
-            <input
-              type="checkbox"
-              checked={s.selected}
-              onChange={() => {
-                const updated = [...form.sarees_sent];
-                updated[i].selected = !updated[i].selected;
-                setForm({ ...form, sarees_sent: updated });
-              }}
-            />
-            <span className="flex-1 text-sm">{s.saree_type}</span>
-            <input
-              type="number"
-              value={s.send_qty}
-              disabled={!s.selected}
-              className="w-16 border rounded px-2 py-1 text-sm"
-              onChange={(e) => {
-                const updated = [...form.sarees_sent];
-                updated[i].send_qty = e.target.value;
-                setForm({ ...form, sarees_sent: updated });
-              }}
-            />
-          </label>
-        ))}
+    <form onSubmit={handleSubmit} className="space-y-2 pb-92">
+      <div>
+        <label className="label">Vendor *</label>
+        {loading ? <Spinner size="sm" /> : vendors.length === 0
+          ? <p className="text-stone-500 text-sm">No vendors for this process.</p>
+          : <select className="input" value={form.vendor_id} onChange={e => setForm({ ...form, vendor_id: e.target.value })}>
+              <option value="">-- Select vendor --</option>
+              {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+        }
       </div>
 
-      {err && <p className="text-red-500 text-sm">{err}</p>}
+      <div>
+        <label className="label">Sarees to send</label>
+        <div className="space-y-2">
+          {form.sarees_sent.map((s, i) => (
+            <div key={i} className={`flex items-center gap-3 p-3 rounded-lg border ${s.selected ? `${c.bg} ${c.border}` : "bg-ink-800 border-ink-700"}`}>
+              <input type="checkbox" checked={s.selected} onChange={() => toggle(i)} className="accent-gold-500" />
+              <span className={`flex-1 text-sm font-medium ${s.selected ? c.text : "text-stone-500"}`}>{s.saree_type}</span>
+              <span className="text-stone-500 text-xs">Qty:</span>
+              <input type="number" min="1" max={s.max} value={s.send_qty} onChange={e => updateQty(i, e.target.value)}
+                disabled={!s.selected} className="input w-20 text-center py-1" />
+              <span className="text-stone-600 text-xs">/ {s.max} avail</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
-      <div className="flex justify-end gap-2 pb-24">
-        <button onClick={onClose} type="button">Cancel</button>
-        <button className="px-4 py-2 bg-blue-600 text-white rounded-xl">
-          {saving ? "Sending…" : "Send"}
-        </button>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className="label">Logistics Vendor</label><input className="input" value={form.logistics_vendor} onChange={e => setForm({ ...form, logistics_vendor: e.target.value })} placeholder="DTDC, BlueDart…" /></div>
+        <div><label className="label">Logistics Type</label><input className="input" value={form.logistics_type} onChange={e => setForm({ ...form, logistics_type: e.target.value })} placeholder="Surface, Air…" /></div>
+      </div>
+      <div><label className="label">Price (₹)</label><input className="input" type="number" min="0" step="0.01" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} placeholder="Cost for this send" /></div>
+
+      {err && <p className="text-ruby-400 text-sm">{err}</p>}
+      <div className="flex gap-3 justify-end pt-2">
+        <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+        <button type="submit" disabled={saving} className="btn-primary">{saving ? "Sending…" : "Send"}</button>
       </div>
     </form>
   );
 }
 
-export default function ProcessStepCard({
-  step,
-  dispatches = [],
-  stepStatus,
-  orderSarees,
-  locked,
-  onSend,
-  onComplete
-}) {
+export default function ProcessStepCard({ step, dispatches = [], stepStatus, orderSarees, locked, onSend, onComplete }) {
   const [modal, setModal] = useState(false);
-  const meta = stepMeta[step];
+  const [completing, setCompleting] = useState(null); // dispatch id being completed
+  const c = stepColors[step];
+
+  const handleComplete = async (dispatchId) => {
+    setCompleting(dispatchId);
+    try { await onComplete(step, dispatchId); }
+    finally { setCompleting(null); }
+  };
+
+  const handleSend = async (payload) => { await onSend(step, payload); setModal(false); };
 
   return (
     <>
-      <div className="border rounded-2xl p-4 bg-white shadow-sm">
-
-        {/* HEADER */}
-        <div className="flex justify-between items-center mb-4">
-
+      <div className={`rounded-xl border ${c.bg} ${c.border} p-4`}>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{meta.icon}</span>
-            <h3 className="font-semibold">{meta.label}</h3>
+            <span className={`text-xl ${c.text}`}>{c.icon}</span>
+            <h3 className={`font-medium text-sm capitalize ${c.text}`}>{step.replace("_", " ")}</h3>
+            {dispatches.length > 0 && (
+              <span className="text-xs text-stone-500">({dispatches.length} send{dispatches.length > 1 ? "s" : ""})</span>
+            )}
           </div>
-
-          <span className={`text-xs px-2 py-1 rounded-lg ${
-            stepStatus === "completed"
-              ? "bg-green-100 text-green-700"
-              : stepStatus === "in_process"
-              ? "bg-yellow-100 text-yellow-700"
-              : "bg-gray-100 text-gray-600"
+          {/* Derived step badge */}
+          <span className={`badge ${
+            stepStatus === "completed" ? "bg-emerald-500/20 text-emerald-400" :
+            stepStatus === "in_process" ? "bg-gold-500/20 text-gold-400" :
+            "bg-stone-700/40 text-stone-400"
           }`}>
             {stepStatus}
           </span>
         </div>
 
-        {/* DISPATCH LIST */}
-        {dispatches.length === 0 ? (
-          <p className="text-sm text-gray-400 mb-3">
-            No items sent yet
-          </p>
-        ) : (
-          <div className="space-y-3 mb-4">
+        {/* Dispatch list */}
+        {dispatches.length > 0 && (
+          <div className="space-y-2 mb-3">
             {dispatches.map((d) => (
-              <div
-                key={d.id}
-                className="p-3 rounded-xl border bg-gray-50"
-              >
-
-                <div className="flex justify-between mb-1">
-                  <span className="font-medium text-sm">
-                    {d.vendor_name}
-                  </span>
-                  <span className="text-xs text-gray-500">
+              <div key={d.id} className="bg-ink-900/60 rounded-lg p-3 border border-ink-700">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-stone-200 text-sm font-medium">{d.vendor_name}</span>
+                  <span className={`badge text-xs ${d.status === "completed" ? "bg-emerald-500/20 text-emerald-400" : "bg-gold-500/20 text-gold-400"}`}>
                     {d.status}
                   </span>
                 </div>
 
-                <div className="text-xs text-gray-500 mb-2">
-                  {d.sarees_sent?.map(s => `${s.saree_type} × ${s.quantity}`).join(", ")}
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {d.sarees_sent?.map((s, i) => (
+                    <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${c.bg} ${c.text} border ${c.border}`}>
+                      {s.saree_type} × {s.quantity}
+                    </span>
+                  ))}
                 </div>
 
-                {!locked && d.status === "in_process" && (
-                  <button
-                    onClick={() => onComplete(step, d.id)}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Mark done →
-                  </button>
-                )}
+                <div className="flex items-center justify-between text-xs text-stone-500">
+                  <div className="flex gap-3">
+                    {d.price != null && <span>₹{d.price}</span>}
+                    {d.logistics_vendor && <span>{d.logistics_vendor} · {d.logistics_type}</span>}
+                  </div>
+                  {!locked && d.status === "in_process" && (
+                    <button
+                      onClick={() => handleComplete(d.id)}
+                      disabled={completing === d.id}
+                      className="text-emerald-400 hover:text-emerald-300 font-medium transition-all"
+                    >
+                      {completing === d.id ? "…" : "Mark done ✓"}
+                    </button>
+                  )}
+                  {d.status === "completed" && (
+                    <span className="text-emerald-500">
+                      Done {d.completed_at ? new Date(d.completed_at).toLocaleDateString("en-IN") : ""}
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* CTA */}
+        {/* Add send button */}
         {!locked && (
-          <button
-            onClick={() => setModal(true)}
-            className="w-full py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 transition"
-          >
-            + Send to {meta.label}
+          <button onClick={() => setModal(true)}
+            className={`w-full py-2 rounded-lg text-xs font-medium transition-all ${c.text} border ${c.border} hover:bg-ink-800`}>
+            + Send to {step.replace("_", " ")}
           </button>
         )}
       </div>
 
-      <Modal
-        open={modal}
-        onClose={() => setModal(false)}
-        title={`Send to ${meta.label}`}
-      >
-        <SendModal
-  step={step}
-  sarees={orderSarees}
-  onSend={(payload) => onSend(step, payload)}
-          onClose={() => setModal(false)}
-        />
+      <Modal open={modal} onClose={() => setModal(false)} title={`Send to ${step.replace("_", " ")}`} size="lg">
+        <SendModal step={step} sarees={orderSarees} onSend={handleSend} onClose={() => setModal(false)} />
       </Modal>
     </>
   );
