@@ -3,9 +3,9 @@ import { getVendors } from "../../utils/api";
 import { Modal, Badge, Spinner } from "../../components/UI";
 
 const stepColors = {
-  gum:        { bg: "bg-emerald-500/10", border: "border-emerald-500/30", text: "text-emerald-400", icon: "◆" },
-  polishing:  { bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-400", icon: "◇" },
-  blouse_work:{ bg: "bg-red-500/10",   border: "border-red-500/30",   text: "text-red-400",   icon: "✦" },
+  gum:        { bg: "bg-black/10", border: "border-black/30", text: "text-black", icon: "◆" },
+  polishing:  { bg: "bg-black/10", border: "border-black/30", text: "text-black", icon: "◇" },
+  blouse_work:{ bg: "bg-black/10",   border: "border-black/30",   text: "text-black",   icon: "✦" },
 };
 
 function SendModal({ step, sarees, onSend, onClose }) {
