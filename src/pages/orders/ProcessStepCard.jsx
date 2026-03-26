@@ -47,8 +47,7 @@ function SendModal({ step, sarees, onSend, onClose }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-
+<form onSubmit={handleSubmit} className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-1">
       <select
         className="w-full border rounded-xl px-3 py-2"
         value={form.vendor_id}
@@ -90,7 +89,7 @@ function SendModal({ step, sarees, onSend, onClose }) {
 
       {err && <p className="text-red-500 text-sm">{err}</p>}
 
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 pb-24">
         <button onClick={onClose} type="button">Cancel</button>
         <button className="px-4 py-2 bg-blue-600 text-white rounded-xl">
           {saving ? "Sending…" : "Send"}
